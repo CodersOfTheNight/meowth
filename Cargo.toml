@@ -1,0 +1,7 @@
+[package]
+name = "meowth"
+version = "0.0.1"
+authors = ["DCO Team"]
+
+[dependencies]
+zmq = "0.8"
