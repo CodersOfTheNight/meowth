@@ -4,5 +4,18 @@ version = "0.0.1"
 authors = ["DCO Team"]
 
 [dependencies]
-zmq = "^0.8"
-statsd = "^0.6.0"
+serde = "0.9.11"
+serde_json = "*"
+serde_derive = "*"
+elastic_derive = "~0.1.0"
+json_str = "^0.*"
+
+time = "0.1"
+
+log = "*"
+env_logger = "*"
+zmq = "0.8"
+statsd = "0.6.0"
+yaml-rust = "0.3.5"
+getopts = "0.2"
+elastic = "*"

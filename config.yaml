@@ -1,0 +1,9 @@
+---
+statsd:
+  address: 127.0.0.1:8125
+  prefix: "logs"
+zeromq:
+  address: tcp://127.0.0.1:50020
+elastic_search:
+  address: http://localhost:9200
+  prefix: logs
