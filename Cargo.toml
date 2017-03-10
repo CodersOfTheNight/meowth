@@ -11,6 +11,7 @@ elastic_derive = "~0.1.0"
 json_str = "^0.*"
 
 time = "0.1"
+chrono = "0.3"
 
 log = "*"
 env_logger = "*"

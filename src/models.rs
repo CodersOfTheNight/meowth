@@ -1,5 +1,6 @@
-
 use elastic::prelude::*;
+use chrono::prelude::*;
+use std::fmt;
 
 #[derive(Debug, Serialize, Deserialize, ElasticType)]
 pub struct LogEntry {
@@ -7,10 +8,19 @@ pub struct LogEntry {
     channel: String,
     func_name: String,
     args: Vec<String>,
-    file_name: String,
+    filename: String,
     module: String,
     host: String,
     message: String,
     lineno: i32,
-    timestamp: Date<DefaultDateFormat>
+    time: DateTime<UTC>,
+    level: i32
+}
+
+impl fmt::Display for LogEntry {
+
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Msg: '{0}' @ {1} line: {2}", &self.message.to_owned(), &self.func_name.to_owned(), &self.lineno.to_owned())
+
+    }
 }

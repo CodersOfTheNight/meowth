@@ -19,7 +19,8 @@ pub struct ZmqCfg {
 #[derive(Clone)]
 pub struct ElasticCfg {
     pub address: String,
-    pub prefix: String
+    pub prefix: String,
+    pub bulk_size: i64,
 }
 
 #[derive(Clone)]
@@ -56,7 +57,8 @@ pub fn load(dir: &str) -> Result<Cfg, io::Error>{
 
             let es = ElasticCfg {
                 address: doc["elastic_search"]["address"].as_str().unwrap().to_owned(),
-                prefix: doc["elastic_search"]["prefix"].as_str().unwrap().to_owned()
+                prefix: doc["elastic_search"]["prefix"].as_str().unwrap().to_owned(),
+                bulk_size: doc["elastic_search"]["bulk_size"].as_i64().unwrap(),
             };
 
             let config = Cfg {

@@ -18,6 +18,8 @@ extern crate log;
 extern crate env_logger;
 
 extern crate time;
+#[macro_use]
+extern crate chrono;
 
 use statsd::Client;
 use getopts::Options;
@@ -26,6 +28,7 @@ use std::thread;
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
 use time::now;
+use std::time::Duration;
 
 mod config;
 mod models;
@@ -86,27 +89,49 @@ fn subscriber(config_obj: &Cfg, tx: Sender<Msg>) {
     }
 }
 
+fn check_elastic(es: &elastic::prelude::Client) -> bool {
+    let ping = elastic::prelude::PingRequest::new();
+    let response = es.request(ping).send();
+    match response {
+        Ok(_) => true,
+        Err(_) => false
+    }
+}
+
 fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
     info!("Starting worker");
     let url = &config_obj.es.address;
     let params = elastic::prelude::RequestParams::new(url.to_owned());
     let es = elastic::prelude::Client::new(params).unwrap();
+    let bulk_size = config_obj.es.bulk_size;
 
-    // Ping
-    let ping = elastic::prelude::PingRequest::new();
-    // let response = es.request(ping).send().unwrap();
+    let sleep_millis = Duration::from_millis(5000);
 
     let mut statsd = Client::new(&config_obj.statsd.address, &config_obj.statsd.prefix).unwrap();
     loop {
         let date = now();
-        let index_str = format!("{0}-{1}-{2}-{3}", &config_obj.es.prefix, date.tm_year, date.tm_mon, date.tm_mday);
+        let index_str = format!("{0}-{1}-{2}-{3}", &config_obj.es.prefix, (date.tm_year + 1900), date.tm_mon, date.tm_mday);
         debug!("Index is: {}", &index_str);
         let index = elastic::prelude::Index::from(index_str.to_owned());
-        let data = rx.recv().unwrap();
-        debug!("Got msg");
-        let msg: LogEntry = serde_json::from_str(&data).unwrap();
+        let mut messages_pack = String::new();
+        let mut pipe = statsd.pipeline();
 
-        statsd.decr("messages.unprocessed");
+        for i in 1 .. bulk_size {
+            let data = rx.recv().unwrap();
+            let msg: LogEntry = serde_json::from_str(&data).unwrap();
+            debug!("LogEntry: {}", msg);
+            debug!("{} items to go before flush", (bulk_size - i));
+            let payload = serde_json::to_string(&msg).unwrap().to_owned();
+            messages_pack.push_str(&payload);
+            pipe.decr("messages.unprocessed");
+        }
+
+        let bulk = elastic::prelude::BulkRequest::for_index(index, messages_pack);
+        while !check_elastic(&es) {
+            info!("ElasticSearch unreachable. Waiting");
+            thread::sleep(sleep_millis);
+        }
+        pipe.send(&mut statsd);
     }
 }
 

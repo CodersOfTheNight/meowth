@@ -7,3 +7,4 @@ zeromq:
 elastic_search:
   address: http://localhost:9200
   prefix: logs
+  bulk_size: 10
