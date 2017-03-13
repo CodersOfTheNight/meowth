@@ -10,12 +10,15 @@ pub struct LogEntry {
     args: Vec<String>,
     filename: String,
     module: String,
-    host: String,
+    host: Option<String>,
     message: String,
     lineno: i32,
     time: DateTime<UTC>,
-    level: i32
+    level: i32,
+    #[serde(rename = "type")] 
+    pub ty: Option<String>,
 }
+
 
 impl fmt::Display for LogEntry {
 

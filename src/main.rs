@@ -29,6 +29,7 @@ use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
 use time::now;
 use std::time::Duration;
+use std::hash::{SipHasher, Hash, Hasher};
 
 mod config;
 mod models;
@@ -41,6 +42,12 @@ type Msg = String;
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} --config cfg", program);
     print!("{}", opts.usage(&brief));
+}
+
+fn get_hash(item: &str) -> String{
+    let mut s = SipHasher::new();
+    item.hash(&mut s);
+    String::from(s.finish().to_string())
 }
 
 fn main() {
@@ -82,7 +89,7 @@ fn subscriber(config_obj: &Cfg, tx: Sender<Msg>) {
         statsd.incr("messages.unprocessed");
         statsd.gauge("messages.size", len);
         let payload = std::str::from_utf8(&data).unwrap();
-        debug!("Payload: {}", payload);
+        trace!("Payload: {}", payload);
         tx.send(payload.to_owned()).unwrap();
     }
 }
@@ -107,30 +114,29 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
 
     let mut statsd = Client::new(&config_obj.statsd.address, &config_obj.statsd.prefix).unwrap();
     loop {
-        let array_begin = String::from("[");
-        let array_end = String::from("]");
-
         let date = now();
-        let index_str = format!("{0}-{1}-{2:09}-{3}", &config_obj.es.prefix, (date.tm_year + 1900), (date.tm_mon + 1), date.tm_mday);
+        let index_str = format!("{0}-{1}-{2:02}-{3}", &config_obj.es.prefix, (date.tm_year + 1900), (date.tm_mon + 1), date.tm_mday);
         debug!("Index is: {}", &index_str);
         let index = elastic::prelude::Index::from(index_str.to_owned());
         let mut messages_pack: Vec<String> = Vec::new();
-        messages_pack.push(array_begin);
         let mut pipe = statsd.pipeline();
 
         for i in 1 .. bulk_size {
             let data = rx.recv().unwrap();
-            let msg: LogEntry = serde_json::from_str(&data).unwrap();
+            let mut msg: LogEntry = serde_json::from_str(&data).unwrap();
+            msg.ty = Some(String::from("transformer"));
             debug!("LogEntry: {}", msg);
             debug!("{} items to go before flush", (bulk_size - i));
             let payload = serde_json::to_string(&msg).unwrap();
+            let doc_index = format!("{{\"index\":{{\"_id\":\"{}\", \"_type\": \"transformer\"}}}}", get_hash(&payload.to_owned()));
+            messages_pack.push(doc_index);
             messages_pack.push(payload);
             pipe.decr("messages.unprocessed");
         }
 
-        messages_pack.push(array_end);
+        let payload = messages_pack.join("\n");
 
-        let bulk = elastic::prelude::BulkRequest::for_index(index, messages_pack.join(","));
+        let bulk = elastic::prelude::BulkRequest::for_index(index, payload);
         while !check_elastic(&es) {
             info!("ElasticSearch unreachable. Waiting");
             thread::sleep(sleep_millis);
