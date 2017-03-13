@@ -109,11 +109,15 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
 
     let mut statsd = Client::new(&config_obj.statsd.address, &config_obj.statsd.prefix).unwrap();
     loop {
+        let array_begin = String::from("[");
+        let array_end = String::from("]");
+
         let date = now();
         let index_str = format!("{0}-{1}-{2}-{3}", &config_obj.es.prefix, (date.tm_year + 1900), date.tm_mon, date.tm_mday);
         debug!("Index is: {}", &index_str);
         let index = elastic::prelude::Index::from(index_str.to_owned());
-        let mut messages_pack = String::new();
+        let mut messages_pack: Vec<String> = Vec::new();
+        messages_pack.push(array_begin);
         let mut pipe = statsd.pipeline();
 
         for i in 1 .. bulk_size {
@@ -121,17 +125,23 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
             let msg: LogEntry = serde_json::from_str(&data).unwrap();
             debug!("LogEntry: {}", msg);
             debug!("{} items to go before flush", (bulk_size - i));
-            let payload = serde_json::to_string(&msg).unwrap().to_owned();
-            messages_pack.push_str(&payload);
+            let payload = serde_json::to_string(&msg).unwrap();
+            messages_pack.push(payload);
             pipe.decr("messages.unprocessed");
         }
 
-        let bulk = elastic::prelude::BulkRequest::for_index(index, messages_pack);
+        messages_pack.push(array_end);
+
+        let bulk = elastic::prelude::BulkRequest::for_index(index, messages_pack.join(","));
         while !check_elastic(&es) {
             info!("ElasticSearch unreachable. Waiting");
             thread::sleep(sleep_millis);
         }
-        pipe.send(&mut statsd);
+        let response = es.request(bulk).send();
+        match response {
+            Ok(_) => pipe.send(&mut statsd),
+            Err(error) => panic!(error)
+        }
     }
 }
 
