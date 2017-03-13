@@ -73,10 +73,8 @@ fn subscriber(config_obj: &Cfg, tx: Sender<Msg>) {
     let mut statsd = Client::new(&config_obj.statsd.address, &config_obj.statsd.prefix).unwrap();
     let ctx = zmq::Context::new();
 
-    let mut socket = ctx.socket(zmq::SUB).unwrap();
+    let mut socket = ctx.socket(zmq::PULL).unwrap();
     socket.bind(&config_obj.zmq.address).unwrap();
-    let subscribtion = format!("").into_bytes();
-    socket.set_subscribe(&subscribtion).unwrap();
 
     loop {
         let data = socket.recv_msg(0).unwrap();
