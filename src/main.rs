@@ -111,7 +111,7 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
         let array_end = String::from("]");
 
         let date = now();
-        let index_str = format!("{0}-{1}-{2}-{3}", &config_obj.es.prefix, (date.tm_year + 1900), date.tm_mon, date.tm_mday);
+        let index_str = format!("{0}-{1}-{2:09}-{3}", &config_obj.es.prefix, (date.tm_year + 1900), (date.tm_mon + 1), date.tm_mday);
         debug!("Index is: {}", &index_str);
         let index = elastic::prelude::Index::from(index_str.to_owned());
         let mut messages_pack: Vec<String> = Vec::new();
