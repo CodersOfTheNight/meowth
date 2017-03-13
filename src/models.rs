@@ -15,8 +15,6 @@ pub struct LogEntry {
     lineno: i32,
     time: DateTime<UTC>,
     level: i32,
-    #[serde(rename = "type")] 
-    pub ty: Option<String>,
 }
 
 

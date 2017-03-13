@@ -123,8 +123,7 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
 
         for i in 1 .. bulk_size {
             let data = rx.recv().unwrap();
-            let mut msg: LogEntry = serde_json::from_str(&data).unwrap();
-            msg.ty = Some(String::from("transformer"));
+            let msg: LogEntry = serde_json::from_str(&data).unwrap();
             debug!("LogEntry: {}", msg);
             debug!("{} items to go before flush", (bulk_size - i));
             let payload = serde_json::to_string(&msg).unwrap();
