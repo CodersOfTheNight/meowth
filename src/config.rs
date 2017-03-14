@@ -14,6 +14,7 @@ pub struct StatsdCfg {
 #[derive(Clone)]
 pub struct ZmqCfg {
     pub address: String,
+    pub bind: bool,
 }
 
 #[derive(Clone)]
@@ -62,6 +63,7 @@ pub fn load(dir: &str) -> Result<Cfg, io::Error>{
                 false => {
                     let cfg = ZmqCfg {
                         address: doc["zeromq"]["address"].as_str().unwrap().to_owned(),
+                        bind: doc["zeromq"]["bind"].as_bool().unwrap(),
                     };
                     Some(cfg)
                 },

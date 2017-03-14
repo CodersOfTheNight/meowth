@@ -84,7 +84,12 @@ fn zmq_subscriber(config_obj: &Cfg, tx: Sender<Msg>) {
             let ctx = zmq::Context::new();
 
             let socket = ctx.socket(zmq::PULL).unwrap();
-            socket.bind(&cfg.address).unwrap();
+            if(cfg.bind) {
+                socket.bind(&cfg.address).unwrap();
+            }
+            else {
+                socket.connect(&cfg.address).unwrap();
+            }
 
             info!("Starting zMQ subscriber");
 
