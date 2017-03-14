@@ -1,0 +1,9 @@
+[Unit]
+Description=Meowth
+
+[Service]
+ExecStart=/opt/meowth/meowth -c /opt/meowth/config.yaml
+PIDFile=/var/run/meowth.pid
+
+[Install]
+WantedBy=multi-user.target
