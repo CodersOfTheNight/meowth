@@ -23,10 +23,17 @@ pub struct ElasticCfg {
     pub bulk_size: i64,
 }
 
+
+#[derive(Clone)]
+pub struct TcpCfg {
+    pub address: String,
+}
+
 #[derive(Clone)]
 pub struct Cfg {
     pub statsd: StatsdCfg,
-    pub zmq: ZmqCfg,
+    pub zmq: Option<ZmqCfg>,
+    pub tcp: Option<TcpCfg>,
     pub es: ElasticCfg,
 }
 
@@ -51,8 +58,24 @@ pub fn load(dir: &str) -> Result<Cfg, io::Error>{
                 prefix: doc["statsd"]["prefix"].as_str().unwrap().to_owned()
             };
 
-            let zmq = ZmqCfg {
-                address: doc["zeromq"]["address"].as_str().unwrap().to_owned(),
+            let zmq = match doc["zeromq"].is_badvalue() {
+                false => {
+                    let cfg = ZmqCfg {
+                        address: doc["zeromq"]["address"].as_str().unwrap().to_owned(),
+                    };
+                    Some(cfg)
+                },
+                true => None,
+            };
+
+            let tcp = match doc["tcp"].is_badvalue() {
+                false => {
+                    let cfg = TcpCfg {
+                        address: doc["tcp"]["address"].as_str().unwrap().to_owned(),
+                    };
+                    Some(cfg)
+                },
+                true => None,
             };
 
             let es = ElasticCfg {
@@ -64,7 +87,8 @@ pub fn load(dir: &str) -> Result<Cfg, io::Error>{
             let config = Cfg {
                 statsd: statsd,
                 zmq: zmq,
-                es: es
+                es: es,
+                tcp: tcp,
             };
             return Ok(config)
         },

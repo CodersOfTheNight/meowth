@@ -31,6 +31,7 @@ use time::now;
 use std::time::Duration;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
+use std::net::{TcpListener, TcpStream};
 
 mod config;
 mod models;
@@ -77,21 +78,56 @@ fn main() {
 }
 
 fn zmq_subscriber(config_obj: &Cfg, tx: Sender<Msg>) {
-    info!("Starting zMQ subscriber");
     let mut statsd = Client::new(&config_obj.statsd.address, &config_obj.statsd.prefix).unwrap();
-    let ctx = zmq::Context::new();
+    match config_obj.zmq {
+        Some(ref cfg) => {
+            let ctx = zmq::Context::new();
 
-    let socket = ctx.socket(zmq::PULL).unwrap();
-    socket.bind(&config_obj.zmq.address).unwrap();
+            let socket = ctx.socket(zmq::PULL).unwrap();
+            socket.bind(&cfg.address).unwrap();
 
-    loop {
-        let data = socket.recv_msg(0).unwrap();
-        let len = data.len() as f64;
-        statsd.incr("messages.unprocessed");
-        statsd.gauge("messages.size", len);
-        let payload = std::str::from_utf8(&data).unwrap();
-        trace!("Payload: {}", payload);
-        tx.send(payload.to_owned()).unwrap();
+            info!("Starting zMQ subscriber");
+
+            loop {
+                let data = socket.recv_msg(0).unwrap();
+                let len = data.len() as f64;
+                statsd.incr("messages.unprocessed");
+                statsd.gauge("messages.size", len);
+                let payload = std::str::from_utf8(&data).unwrap();
+                trace!("Payload: {}", payload);
+                tx.send(payload.to_owned()).unwrap();
+            }
+        },
+        None => {
+        }
+    }
+}
+
+fn handle_stream(stream: TcpStream, tx: &Sender<Msg>) {
+    // TODO: Someday
+}
+
+fn tcp_subscriber(config_obj: &Cfg, tx: Sender<Msg>) {
+    let mut statsd = Client::new(&config_obj.statsd.address, &config_obj.statsd.prefix).unwrap();
+    match config_obj.tcp {
+        Some(ref cfg) => {
+            info!("Starting TCP subscriber");
+            let addr: &str = &cfg.address;
+            let listener = TcpListener::bind(&addr).unwrap();
+
+            for stream in listener.incoming() {
+                match stream {
+                    Ok(s) => {
+                        handle_stream(s, &tx);
+                    },
+                    Err(e) => {
+                        panic!(e);
+                    }
+                }
+            }
+        },
+        None => {
+        }
     }
 }
 
@@ -156,9 +192,15 @@ fn run(cfg: &str) {
     let (tx, rx): (Sender<Msg>, Receiver<Msg>) = mpsc::channel();
 
     let config = config_obj.clone();
+    let thread_tx = tx.clone();
     thread::spawn(move || {
-        let thread_tx = tx.clone();
         zmq_subscriber(&config, thread_tx);
+    });
+
+    let config = config_obj.clone();
+    let thread_tx = tx.clone();
+    thread::spawn(move || {
+        tcp_subscriber(&config, thread_tx);
     });
 
 
