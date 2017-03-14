@@ -148,6 +148,7 @@ fn check_elastic(es: &elastic::prelude::Client) -> bool {
 fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
     info!("Starting worker");
     let url = &config_obj.es.address;
+    let ty = &config_obj.es.ty;
     let params = elastic::prelude::RequestParams::new(url.to_owned());
     let es = elastic::prelude::Client::new(params).unwrap();
     let bulk_size = config_obj.es.bulk_size;
@@ -169,7 +170,7 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
             debug!("LogEntry: {}", msg);
             debug!("{} items to go before flush", (bulk_size - i));
             let payload = serde_json::to_string(&msg).unwrap();
-            let doc_index = format!("{{\"index\":{{\"_id\":\"{}\", \"_type\": \"transformer\"}}}}", get_hash(&payload.to_owned()));
+            let doc_index = format!("{{\"index\":{{\"_id\":\"{0}\", \"_type\": \"{1}\"}}}}", get_hash(&payload.to_owned()), &ty);
             messages_pack.push(doc_index);
             messages_pack.push(payload);
             pipe.decr("messages.unprocessed");

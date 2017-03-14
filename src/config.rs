@@ -22,6 +22,7 @@ pub struct ElasticCfg {
     pub address: String,
     pub prefix: String,
     pub bulk_size: i64,
+    pub ty: String,
 }
 
 
@@ -84,6 +85,7 @@ pub fn load(dir: &str) -> Result<Cfg, io::Error>{
                 address: doc["elastic_search"]["address"].as_str().unwrap().to_owned(),
                 prefix: doc["elastic_search"]["prefix"].as_str().unwrap().to_owned(),
                 bulk_size: doc["elastic_search"]["bulk_size"].as_i64().unwrap(),
+                ty: doc["elastic_search"]["type"].as_str().unwrap().to_owned(),
             };
 
             let config = Cfg {
