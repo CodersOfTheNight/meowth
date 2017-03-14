@@ -29,7 +29,8 @@ use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
 use time::now;
 use std::time::Duration;
-use std::hash::{SipHasher, Hash, Hasher};
+use std::hash::{Hash, Hasher};
+use std::collections::hash_map::DefaultHasher;
 
 mod config;
 mod models;
@@ -45,7 +46,7 @@ fn print_usage(program: &str, opts: Options) {
 }
 
 fn get_hash(item: &str) -> String{
-    let mut s = SipHasher::new();
+    let mut s = DefaultHasher::new();
     item.hash(&mut s);
     String::from(s.finish().to_string())
 }
@@ -75,12 +76,12 @@ fn main() {
 
 }
 
-fn subscriber(config_obj: &Cfg, tx: Sender<Msg>) {
-    info!("Starting subscriber");
+fn zmq_subscriber(config_obj: &Cfg, tx: Sender<Msg>) {
+    info!("Starting zMQ subscriber");
     let mut statsd = Client::new(&config_obj.statsd.address, &config_obj.statsd.prefix).unwrap();
     let ctx = zmq::Context::new();
 
-    let mut socket = ctx.socket(zmq::PULL).unwrap();
+    let socket = ctx.socket(zmq::PULL).unwrap();
     socket.bind(&config_obj.zmq.address).unwrap();
 
     loop {
@@ -155,18 +156,18 @@ fn run(cfg: &str) {
     let (tx, rx): (Sender<Msg>, Receiver<Msg>) = mpsc::channel();
 
     let config = config_obj.clone();
-    let sub = thread::spawn(move || {
+    thread::spawn(move || {
         let thread_tx = tx.clone();
-        subscriber(&config, thread_tx);
+        zmq_subscriber(&config, thread_tx);
     });
 
 
     let config = config_obj.clone();
-    thread::spawn(move || {
+    let w = thread::spawn(move || {
         worker(&config, rx);
     });
 
-    let result = sub.join();
+    let result = w.join();
     assert!(result.is_err());
 }
 

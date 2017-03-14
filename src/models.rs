@@ -1,4 +1,3 @@
-use elastic::prelude::*;
 use chrono::prelude::*;
 use std::fmt;
 
