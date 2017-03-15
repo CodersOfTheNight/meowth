@@ -21,6 +21,8 @@ extern crate time;
 #[macro_use]
 extern crate chrono;
 
+extern crate hostname;
+
 use statsd::Client;
 use getopts::Options;
 use std::env;
@@ -32,6 +34,7 @@ use std::time::Duration;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
 use std::net::{TcpListener, TcpStream};
+use hostname::get_hostname;
 
 mod config;
 mod models;
@@ -84,7 +87,7 @@ fn zmq_subscriber(config_obj: &Cfg, tx: Sender<Msg>) {
             let ctx = zmq::Context::new();
 
             let socket = ctx.socket(zmq::PULL).unwrap();
-            if(cfg.bind) {
+            if cfg.bind {
                 socket.bind(&cfg.address).unwrap();
             }
             else {
@@ -166,10 +169,27 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
 
         for i in 1 .. bulk_size {
             let data = rx.recv().unwrap();
-            let msg: LogEntry = serde_json::from_str(&data).unwrap();
-            debug!("LogEntry: {}", msg);
+            let mut msg: LogEntry = serde_json::from_str(&data).unwrap();
+            //Extend model with additional fields
+            match msg.ty {
+                None => {
+                    msg.ty = Some(String::from(ty.to_owned()));
+                },
+                _ => {}
+            }
+
+            match msg.host {
+                None => {
+                    msg.host = get_hostname();
+                },
+                _ => {}
+            }
+            msg.ts = Some(msg.time);
+
+
             debug!("{} items to go before flush", (bulk_size - i));
             let payload = serde_json::to_string(&msg).unwrap();
+            trace!("Output payload: {}", payload);
             let doc_index = format!("{{\"index\":{{\"_id\":\"{0}\", \"_type\": \"{1}\"}}}}", get_hash(&payload.to_owned()), &ty);
             messages_pack.push(doc_index);
             messages_pack.push(payload);

@@ -9,11 +9,15 @@ pub struct LogEntry {
     args: Vec<String>,
     filename: String,
     module: String,
-    host: Option<String>,
+    pub host: Option<String>,
     message: String,
     lineno: i32,
-    time: DateTime<UTC>,
+    pub time: DateTime<UTC>,
     level: i32,
+    #[serde(rename="type")]
+    pub ty: Option<String>,
+    #[serde(rename="@timestamp")]
+    pub ts: Option<DateTime<UTC>>,
 }
 
 
