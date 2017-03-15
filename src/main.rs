@@ -38,9 +38,11 @@ use hostname::get_hostname;
 
 mod config;
 mod models;
+mod es_manager;
 
 use config::Cfg;
 use models::LogEntry;
+use es_manager::ESManager;
 
 type Msg = String;
 
@@ -154,6 +156,7 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
     let ty = &config_obj.es.ty;
     let params = elastic::prelude::RequestParams::new(url.to_owned());
     let es = elastic::prelude::Client::new(params).unwrap();
+    let m = ESManager::new(vec![url.to_owned()]);
     let bulk_size = config_obj.es.bulk_size;
 
     let sleep_millis = Duration::from_millis(5000);
