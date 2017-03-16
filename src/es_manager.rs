@@ -88,13 +88,29 @@ impl<'a> ESManager<'a, Client> {
 
     pub fn request<T>(&'a self, req: T) -> RequestBuilder<'a, T>
         where T: Into<HttpRequest<'static>>{
-        self.clients[0].request(req)
+        let index = self.cursor.current() as usize;
+        self.clients[index].request(req)
     }
 
+    pub fn update(&mut self) {
+        self.cursor.next();
+        let mut fail_count = 0;
 
-    pub fn check_connection(self) -> bool {
-        self.clients.into_iter().any(|c| {
-            check_client(&c)
-        })
+        loop {
+            let index = self.cursor.current() as usize;
+            let client = &mut self.clients[index];
+            if !check_client(client) {
+                info!("Client unreachable. Fetching next one");
+                self.cursor.next();
+                fail_count += 1;
+            }
+            else {
+                break;
+            }
+
+            if fail_count > self.cursor.end {
+                panic!("Non of the clients was able to connect");
+            }
+        }
     }
 }

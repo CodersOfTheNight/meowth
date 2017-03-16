@@ -151,7 +151,7 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
 
     let mut statsd = Client::new(&config_obj.statsd.address, &config_obj.statsd.prefix).unwrap();
     loop {
-        let es = ESManager::new(urls.clone());
+        let mut es = ESManager::new(urls.clone());
 
         let date = now();
         let index_str = format!("{0}-{1}.{2:02}.{3}", &config_obj.es.prefix, (date.tm_year + 1900), (date.tm_mon + 1), date.tm_mday);
@@ -196,6 +196,7 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
                 let b = bulk.clone();
                 es.request(b).send()
         });
+        es.update();
 
         pipe.send(&mut statsd);
     }
