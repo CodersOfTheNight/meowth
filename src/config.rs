@@ -2,7 +2,7 @@ use std::io;
 use std::fs::File;
 use std::io::prelude::*;
 
-use yaml_rust::YamlLoader;
+use yaml_rust::{YamlLoader, Yaml};
 
 #[derive(Clone)]
 pub struct StatsdCfg {
@@ -19,7 +19,7 @@ pub struct ZmqCfg {
 
 #[derive(Clone)]
 pub struct ElasticCfg {
-    pub address: String,
+    pub address: Vec<String>,
     pub prefix: String,
     pub bulk_size: i64,
     pub ty: String,
@@ -81,8 +81,10 @@ pub fn load(dir: &str) -> Result<Cfg, io::Error>{
                 true => None,
             };
 
+            let addresses: &Vec<Yaml> = doc["elastic_search"]["address"].as_vec().unwrap();
+
             let es = ElasticCfg {
-                address: doc["elastic_search"]["address"].as_str().unwrap().to_owned(),
+                address: addresses.iter().map(|addr| { addr.as_str().unwrap().to_owned() }).collect(),
                 prefix: doc["elastic_search"]["prefix"].as_str().unwrap().to_owned(),
                 bulk_size: doc["elastic_search"]["bulk_size"].as_i64().unwrap(),
                 ty: doc["elastic_search"]["type"].as_str().unwrap().to_owned(),

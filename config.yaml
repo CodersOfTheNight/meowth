@@ -6,7 +6,8 @@ zeromq:
   address: tcp://127.0.0.1:50020
   bind: true
 elastic_search:
-  address: http://localhost:9200
+  address:
+    - http://localhost:9200
   prefix: logs
   bulk_size: 10
   type: transformer

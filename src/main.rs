@@ -38,6 +38,8 @@ use hostname::get_hostname;
 
 mod config;
 mod models;
+
+#[macro_use]
 mod es_manager;
 
 use config::Cfg;
@@ -141,28 +143,16 @@ fn tcp_subscriber(config_obj: &Cfg, tx: Sender<Msg>) {
     }
 }
 
-fn check_elastic(es: &elastic::prelude::Client) -> bool {
-    let ping = elastic::prelude::PingRequest::new();
-    let response = es.request(ping).send();
-    match response {
-        Ok(_) => true,
-        Err(_) => false
-    }
-}
-
 fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
     info!("Starting worker");
-    let url = &config_obj.es.address;
+    let urls = &config_obj.es.address;
     let ty = &config_obj.es.ty;
-    let params = elastic::prelude::RequestParams::new(url.to_owned());
-    let es = elastic::prelude::Client::new(params).unwrap();
-    let m = ESManager::new(vec![url.to_owned()]);
     let bulk_size = config_obj.es.bulk_size;
-
-    let sleep_millis = Duration::from_millis(5000);
 
     let mut statsd = Client::new(&config_obj.statsd.address, &config_obj.statsd.prefix).unwrap();
     loop {
+        let es = ESManager::new(urls.clone());
+
         let date = now();
         let index_str = format!("{0}-{1}.{2:02}.{3}", &config_obj.es.prefix, (date.tm_year + 1900), (date.tm_mon + 1), date.tm_mday);
         debug!("Index is: {}", &index_str);
@@ -200,17 +190,14 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
         }
 
         let payload = messages_pack.join("\n");
-
         let bulk = elastic::prelude::BulkRequest::for_index(index, payload);
-        while !check_elastic(&es) {
-            info!("ElasticSearch unreachable. Waiting");
-            thread::sleep(sleep_millis);
-        }
-        let response = es.request(bulk).send();
-        match response {
-            Ok(_) => pipe.send(&mut statsd),
-            Err(error) => panic!(error)
-        }
+
+        ensure! ({
+                let b = bulk.clone();
+                es.request(b).send()
+        });
+
+        pipe.send(&mut statsd);
     }
 }
 
