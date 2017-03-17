@@ -2,6 +2,7 @@ use elastic::prelude::*;
 use std::marker::PhantomData;
 
 use std::time::Duration;
+use std::thread;
 
 macro_rules! ensure {
     ($($body: expr), *) => {
