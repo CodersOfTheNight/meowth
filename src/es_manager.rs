@@ -84,7 +84,7 @@ impl<'a> ESManager<'a, Client> {
         }).collect();
 
         info!("Creating ElastiSearch Manager with {} clients", size);
-        ESManager{ clients: clients, phantom: PhantomData, cursor: RRCursor { end: size as u32, current: 0 } }
+        ESManager{ clients: clients, phantom: PhantomData, cursor: RRCursor::new(size as u32) }
     }
 
     pub fn request<T>(&'a self, req: T) -> RequestBuilder<'a, T>
