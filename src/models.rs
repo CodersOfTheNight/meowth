@@ -3,7 +3,7 @@ use std::fmt;
 
 #[derive(Debug, Serialize, Deserialize, ElasticType)]
 pub struct LogEntry {
-    process: i32,
+    process: i64,
     channel: String,
     func_name: String,
     args: Vec<String>,
