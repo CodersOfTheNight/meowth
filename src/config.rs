@@ -4,6 +4,10 @@ use std::io::prelude::*;
 
 use yaml_rust::{YamlLoader, Yaml};
 
+trait Config<T> {
+    fn load(doc: &Yaml) -> T;
+}
+
 #[derive(Clone)]
 pub struct StatsdCfg {
     pub address: String,
@@ -39,6 +43,78 @@ pub struct Cfg {
     pub es: ElasticCfg,
 }
 
+impl Config<StatsdCfg> for StatsdCfg {
+    fn load(doc: &Yaml) -> StatsdCfg {
+        StatsdCfg {
+            address: doc["address"].as_str().unwrap().to_owned(),
+            prefix: doc["prefix"].as_str().unwrap().to_owned()
+        }
+    }
+}
+
+
+impl Config<ZmqCfg> for ZmqCfg {
+    fn load(doc: &Yaml) -> ZmqCfg {
+        ZmqCfg {
+
+            address: doc["address"].as_str().unwrap().to_owned(),
+            bind: doc["bind"].as_bool().unwrap(),
+        }
+    }
+}
+
+
+impl Config<TcpCfg> for TcpCfg {
+    fn load(doc: &Yaml) -> TcpCfg {
+        TcpCfg {
+            address: doc["address"].as_str().unwrap().to_owned(),
+        }
+    }
+}
+
+impl Config<ElasticCfg> for ElasticCfg {
+    fn load(doc: &Yaml) -> ElasticCfg {
+        let addresses: &Vec<Yaml> = doc["address"].as_vec().unwrap();
+        ElasticCfg {
+            address: addresses.iter().map(|addr| { addr.as_str().unwrap().to_owned() }).collect(),
+            prefix: doc["prefix"].as_str().unwrap().to_owned(),
+            bulk_size: doc["bulk_size"].as_i64().unwrap(),
+            ty: doc["type"].as_str().unwrap().to_owned(),
+        }
+    }
+}
+
+
+impl Config<Cfg> for Cfg {
+    fn load(doc: &Yaml) -> Cfg {
+        let statsd = StatsdCfg::load(&doc["statsd"]);
+        let zmq = match doc["zeromq"].is_badvalue() {
+            false => {
+                Some(ZmqCfg::load(&doc["zeromq"]))
+            },
+            true => None,
+        };
+
+        let tcp = match doc["tcp"].is_badvalue() {
+            false => {
+                Some(TcpCfg::load(&doc["tcp"]))
+            },
+            true => None,
+        };
+
+        let es = ElasticCfg::load(&doc["elastic_search"]);
+
+        Cfg {
+            statsd: statsd,
+            zmq: zmq,
+            es: es,
+            tcp: tcp,
+        }
+    }
+}
+
+
+
 fn read(dir: &str) -> Result<String, io::Error> {
     let mut f = try!(File::open(dir));
     let mut s = String::new();
@@ -54,49 +130,7 @@ pub fn load(dir: &str) -> Result<Cfg, io::Error>{
         Ok(s) => {
             let docs = YamlLoader::load_from_str(&s).unwrap();
             let doc = &docs[0];
-
-            let statsd = StatsdCfg {
-                address: doc["statsd"]["address"].as_str().unwrap().to_owned(),
-                prefix: doc["statsd"]["prefix"].as_str().unwrap().to_owned()
-            };
-
-            let zmq = match doc["zeromq"].is_badvalue() {
-                false => {
-                    let cfg = ZmqCfg {
-                        address: doc["zeromq"]["address"].as_str().unwrap().to_owned(),
-                        bind: doc["zeromq"]["bind"].as_bool().unwrap(),
-                    };
-                    Some(cfg)
-                },
-                true => None,
-            };
-
-            let tcp = match doc["tcp"].is_badvalue() {
-                false => {
-                    let cfg = TcpCfg {
-                        address: doc["tcp"]["address"].as_str().unwrap().to_owned(),
-                    };
-                    Some(cfg)
-                },
-                true => None,
-            };
-
-            let addresses: &Vec<Yaml> = doc["elastic_search"]["address"].as_vec().unwrap();
-
-            let es = ElasticCfg {
-                address: addresses.iter().map(|addr| { addr.as_str().unwrap().to_owned() }).collect(),
-                prefix: doc["elastic_search"]["prefix"].as_str().unwrap().to_owned(),
-                bulk_size: doc["elastic_search"]["bulk_size"].as_i64().unwrap(),
-                ty: doc["elastic_search"]["type"].as_str().unwrap().to_owned(),
-            };
-
-            let config = Cfg {
-                statsd: statsd,
-                zmq: zmq,
-                es: es,
-                tcp: tcp,
-            };
-            return Ok(config)
+            return Ok(Cfg::load(&doc))
         },
         Err(e) => return Err(e)
 
