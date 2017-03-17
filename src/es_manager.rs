@@ -58,7 +58,7 @@ impl Cursor for RRCursor {
     }
 
     fn next(&mut self){
-        if self.current < self.end {
+        if self.current < (self.end - 1) {
             self.current += 1;
         }
         else {
@@ -96,6 +96,8 @@ impl<'a> ESManager<'a, Client> {
         self.cursor.next();
         let mut fail_count = 0;
 
+        let sleep_millis = Duration::from_millis(15000);
+
         loop {
             let index = self.cursor.current() as usize;
             let client = &mut self.clients[index];
@@ -109,7 +111,9 @@ impl<'a> ESManager<'a, Client> {
             }
 
             if fail_count > self.cursor.end {
-                panic!("Non of the clients was able to connect");
+                info!("Non of the clients was able to connect. Sleeping for 15sec");
+                thread::sleep(sleep_millis);
+                fail_count = 0;
             }
         }
     }
