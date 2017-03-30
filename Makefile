@@ -17,3 +17,13 @@ release: $(CARGO_BIN) test
 
 test: $(CARGO_BIN)
 	$(CARGO_BIN) test
+
+install: $(CARGO_BIN) test release
+ifneq ("$(wildcard /etc/redhat-release)","")
+	mkdir -p /opt/meowth/
+	cp target/release/meowth
+	cp etc/meowth.service /etc/systemd/system/meowth.service
+	systemctl daemon-reload
+else
+	@echo "Sorry, but simplified installiation is not available for your OS"
+endif
