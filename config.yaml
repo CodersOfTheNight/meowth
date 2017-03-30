@@ -10,4 +10,4 @@ elastic_search:
     - http://localhost:9200
   prefix: logs
   bulk_size: 10
-  type: transformer
+  type: test
