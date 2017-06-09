@@ -3,6 +3,9 @@ rust:
   - stable
   - beta
   - nightly
+
+before_install:
+  - sudo apt-get install libzmq libzmq-dev
 matrix:
   allow_failures:
     - rust: nightly
