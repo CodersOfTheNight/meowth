@@ -12,7 +12,6 @@ addons:
   apt:
     packages:
     - build-essential
-    - libzmq3
     - libzmq3-dev
 
 matrix:
