@@ -1,3 +1,7 @@
+Status
+=======
+[![Build Status](https://travis-ci.org/CodersOfTheNight/meowth.svg?branch=master)](https://travis-ci.org/CodersOfTheNight/meowth)
+
 About
 =====
 Simple service which is receiving messages from zeroMq and pushes them to ElasticSearch. 
