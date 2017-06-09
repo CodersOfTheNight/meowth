@@ -16,7 +16,7 @@ chrono = "0.3"
 
 log = "*"
 env_logger = "*"
-zmq = "0.8"
+zmq = "^0.8"
 statsd = "0.6.0"
 yaml-rust = "0.3.5"
 getopts = "0.2"
