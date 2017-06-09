@@ -11,7 +11,7 @@ before_install:
 addons:
   apt:
     packages:
-    - libzmq-dev
+    - libzmq3
 
 matrix:
   allow_failures:
