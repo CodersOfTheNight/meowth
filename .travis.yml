@@ -4,10 +4,11 @@ rust:
   - beta
   - nightly
 
+before_install:
+  - sudo add-apt-repository ppa:travis-ci/zero-mq -y
+  - sudo apt-get update
+  - sudo apt-get install zero-mq
+
 matrix:
-  include:
-    - os: linux
-      dist: centos7
-      sudo: required
   allow_failures:
     - rust: nightly
