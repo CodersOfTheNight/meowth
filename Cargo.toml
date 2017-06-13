@@ -4,20 +4,20 @@ version = "0.0.1"
 authors = ["Šarūnas Navickas"]
 
 [dependencies]
-serde = "0.9.11"
+serde = "^0.9.11"
 serde_json = "*"
 serde_derive = "*"
-elastic_derive = "~0.1.0"
+elastic_derive = "^0.1.0"
 json_str = "^0.*"
-hostname = "0.1.3"
+hostname = "^0.1.3"
 
-time = "0.1"
-chrono = "0.3"
+time = "^0.1"
+chrono = "^0.3"
 
 log = "*"
 env_logger = "*"
 zmq = "^0.8"
-statsd = "0.6.0"
-yaml-rust = "0.3.5"
-getopts = "0.2"
+statsd = "^0.6.0"
+yaml-rust = "^0.3.5"
+getopts = "^0.2"
 elastic = "*"
