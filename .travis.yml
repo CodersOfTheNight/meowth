@@ -4,10 +4,9 @@ rust:
   - beta
   - nightly
 
-before_install:
-  - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
-  - sudo apt-get update -q
-  - sh build_zmq.sh
+env:
+  matrix:
+  - OS_TYPE=centos OS_VERSION=7
 
 matrix:
   allow_failures:
