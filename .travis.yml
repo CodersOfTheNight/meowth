@@ -12,8 +12,7 @@ addons:
   apt:
     packages:
     - build-essential
-    - libzmq4
-    - libzmq4-dev
+    - libzmq5
 
 matrix:
   allow_failures:
