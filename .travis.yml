@@ -5,9 +5,8 @@ rust:
   - nightly
 
 before_install:
-  - sudo add-apt-repository ppa:travis-ci/zero-mq -y
   - sudo apt-get update
-  - sudo apt-get install zero-mq
+  - sh build_zmq.sh
 
 matrix:
   allow_failures:

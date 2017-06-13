@@ -8,7 +8,14 @@ sudo apt-get install libtool pkg-config build-essential autoconf automake
 sudo apt-get install libzmq-dev
 
 # Get libsodium
-sudo apt-get install libsodium libsodium-dev
+git clone git://github.com/jedisct1/libsodium.git
+cd libsodium
+./autogen.sh
+./configure && make check
+sudo make install
+sudo ldconfig
+
+cd ..
 
 # Install zeromq
 # latest version as of this post is 4.1.2
