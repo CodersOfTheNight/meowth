@@ -9,18 +9,13 @@ all: build
 $(CARGO_BIN):
 	curl https://sh.rustup.rs -sSf | sh
 
-build: $(CARGO_BIN) zmq devel_version
+build: $(CARGO_BIN) zmq
 	$(CARGO_BIN) build
-
-devel_version:
-	$(RUSTUP_BIN) install beta
-	$(RUSTUP_BIN) default beta
-
 
 run: $(CARGO_BIN) build
 	RUST_LOG=debug $(CARGO_BIN) run -- -c config.yaml
 
-release: $(CARGO_BIN) zmq devel_version test
+release: $(CARGO_BIN) zmq test
 	$(CARGO_BIN) build --release
 
 test: $(CARGO_BIN) build
