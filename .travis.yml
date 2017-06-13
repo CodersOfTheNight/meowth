@@ -4,10 +4,10 @@ rust:
   - beta
   - nightly
 
-env:
-  matrix:
-  - OS_TYPE=centos OS_VERSION=7
-
 matrix:
+  include:
+    - os: linux
+      dist: centos7
+      sudo: required
   allow_failures:
     - rust: nightly
