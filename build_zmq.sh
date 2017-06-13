@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# BASED ON: https://gist.github.com/mnlcandelaria/c9a741801caf15de4e8b
+
 # run in sudo
 # Before installing, make sure you have installed all the needed packages
 sudo apt-get install libtool pkg-config build-essential autoconf automake
