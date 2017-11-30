@@ -6,7 +6,7 @@ rust:
 
 before_install:
   - sudo apt-get update
-  - sh build_zmq.sh
+  - sudo apt-get install -y -qq libzmq3-dev libsodium-dev
 
 matrix:
   allow_failures:
