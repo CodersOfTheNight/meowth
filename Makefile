@@ -22,6 +22,9 @@ release: $(CARGO_BIN) zmq test
 test: $(CARGO_BIN) build
 	$(CARGO_BIN) test
 
+lib:
+	$(CARGO_BIN) 
+
 install: $(CARGO_BIN) test release
 ifneq ("$(wildcard /etc/redhat-release)","")
 	mkdir -p /opt/meowth/

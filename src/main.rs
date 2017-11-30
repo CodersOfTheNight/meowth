@@ -5,23 +5,14 @@ extern crate getopts;
 extern crate elastic;
 
 #[macro_use]
-extern crate json_str;
-#[macro_use]
-extern crate elastic_derive;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde;
-extern crate serde_json;
-
-#[macro_use]
 extern crate log;
 extern crate env_logger;
 
 extern crate time;
-#[macro_use]
-extern crate chrono;
 
 extern crate hostname;
+
+extern crate meowth_lib;
 
 use statsd::Client;
 use getopts::Options;
@@ -36,14 +27,15 @@ use std::collections::hash_map::DefaultHasher;
 use std::net::{TcpListener, TcpStream};
 use hostname::get_hostname;
 
+use meowth_lib::models::LogEntry;
+use meowth_lib::{logentry_to_msg, msg_to_logentry};
+
 mod config;
-mod models;
 
 #[macro_use]
 mod es_manager;
 
 use config::Cfg;
-use models::LogEntry;
 use es_manager::ESManager;
 
 type Msg = String;
@@ -156,13 +148,14 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
         let date = now();
         let index_str = format!("{0}-{1}.{2:02}.{3}", &config_obj.es.prefix, (date.tm_year + 1900), (date.tm_mon + 1), date.tm_mday);
         debug!("Index is: {}", &index_str);
-        let index = elastic::prelude::Index::from(index_str.to_owned());
+        let index = es.create_index(index_str);
         let mut messages_pack: Vec<String> = Vec::new();
         let mut pipe = statsd.pipeline();
 
         for i in 1 .. bulk_size {
             let data = rx.recv().unwrap();
-            let mut msg: LogEntry = serde_json::from_str(&data).unwrap();
+            debug!("Received message: '{}'", &data);
+            let mut msg: LogEntry = msg_to_logentry(&data);
             //Extend model with additional fields
             match msg.ty {
                 None => {
@@ -181,7 +174,7 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
 
 
             debug!("{} items to go before flush", (bulk_size - i));
-            let payload = serde_json::to_string(&msg).unwrap();
+            let payload = logentry_to_msg(&msg);
             trace!("Output payload: {}", payload);
             let doc_index = format!("{{\"index\":{{\"_id\":\"{0}\", \"_type\": \"{1}\"}}}}", get_hash(&payload.to_owned()), &ty);
             messages_pack.push(doc_index);
@@ -190,7 +183,7 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
         }
 
         let payload = messages_pack.join("\n");
-        let bulk = elastic::prelude::BulkRequest::for_index(index, payload);
+        let bulk = es.create_bulk(index, payload);
 
         ensure! ({
                 let b = bulk.clone();

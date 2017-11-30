@@ -35,6 +35,7 @@ fn check_client(es: &Client) -> bool {
 }
 
 
+
 trait Cursor {
     fn current(&self) -> u32;
     fn next(&mut self);
@@ -88,7 +89,7 @@ impl<'a> ESManager<'a, Client> {
     }
 
     pub fn request<T>(&'a self, req: T) -> RequestBuilder<'a, T>
-        where T: Into<HttpRequest<'static>>{
+        where T: Into<HttpRequest<'static, u8>>{
         let index = self.cursor.current() as usize;
         self.clients[index].request(req)
     }
@@ -117,5 +118,13 @@ impl<'a> ESManager<'a, Client> {
                 fail_count = 0;
             }
         }
+    }
+
+    pub fn create_index(index_str: &String) -> Index {
+        Index::from(index_str.to_owned())
+    }
+
+    pub fn create_bulk(index: Index, payload: &String) -> BulkRequest<'a> {
+        BulkRequest::for_index(index, payload);
     }
 }
