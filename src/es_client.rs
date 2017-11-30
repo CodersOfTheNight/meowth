@@ -5,7 +5,7 @@ use elastic::error::Result;
 
 pub trait ESClient {
     fn new(url: &String) -> Self;
-    fn push_messages(&mut self, data: &Vec<String>) -> bool;
+    fn push_messages(&mut self, index_str: &String, data: &Vec<String>) -> bool;
     fn ping(&mut self) -> bool;
 }
 
@@ -22,8 +22,19 @@ impl ESClient for SyncESClient {
         SyncESClient { io: client }
     }
 
-    fn push_messages(&mut self, data: &Vec<String>) -> bool {
-        true
+    fn push_messages(&mut self, index_str: &String, data: &Vec<String>) -> bool {
+        let payload = data.join("\n");
+        let index = Index::from(index_str.to_owned());
+        let bulk = BulkRequest::for_index(index, payload);
+        match self.io.request(bulk).send(){
+                Ok(_) => {
+                    true
+                },
+                Err(error) => {
+                    info!("Failed to push bulk to ElasticSearch. Reason: {:?}. Will retry with next push", error);
+                    false
+                }
+        }
     }
 
     fn ping(&mut self) -> bool {

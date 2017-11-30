@@ -1,7 +1,3 @@
-use elastic::prelude::*;
-use elastic::client::requests::RequestBuilder;
-use elastic::client::Sender;
-
 use std::marker::PhantomData;
 use std::time::Duration;
 use std::thread;
@@ -75,6 +71,7 @@ pub struct ESManager<'a, T: 'a> {
     clients: Vec<T>,
     cursor: RRCursor,
     phantom: PhantomData<&'a T>,
+    retry_queue: Vec<(String, Vec<String>)>
 }
 
 impl<'a, TClient: ESClient> ESManager<'a, TClient>
@@ -86,12 +83,18 @@ impl<'a, TClient: ESClient> ESManager<'a, TClient>
         }).collect();
 
         info!("Creating ElastiSearch Manager with {} clients", size);
-        ESManager{ clients: clients, phantom: PhantomData, cursor: RRCursor::new(size as u32) }
+        ESManager{ clients: clients, phantom: PhantomData, cursor: RRCursor::new(size as u32), retry_queue: Vec::new() }
     }
 
-    pub fn push_messages(&mut self, data: &Vec<String>) -> bool {
+    pub fn push_messages(&mut self, index_str: &String, data: &Vec<String>) -> bool {
         let index = self.cursor.current() as usize;
-        self.clients[index].push_messages(data)
+        if !self.clients[index].push_messages(index_str, data) {
+            self.retry_queue.push((index_str.clone(), data.clone()));
+            false
+        }
+        else{
+            true
+        }
     }
 
     pub fn update(&mut self) {
@@ -118,12 +121,11 @@ impl<'a, TClient: ESClient> ESManager<'a, TClient>
                 fail_count = 0;
             }
         }
-    }
 
-/*
-    pub fn create_bulk<T>(index_str: &String, payload: T) -> BulkRequest<'a, T> {
-        let index = Index::from(index_str.to_owned());
-        BulkRequest::for_index(index, payload)
+        // Handle Retry Queue
+        while let Some(head) = self.retry_queue.pop() {
+            let (index, data) = head;
+            self.push_messages(&index, &data);
+        }
     }
-    */
 }

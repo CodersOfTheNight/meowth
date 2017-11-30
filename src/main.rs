@@ -144,8 +144,8 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
     let bulk_size = config_obj.es.bulk_size;
 
     let mut statsd = Client::new(&config_obj.statsd.address, &config_obj.statsd.prefix).unwrap();
+    let mut es: ESManager<SyncESClient> = ESManager::new(urls.clone());
     loop {
-        let mut es: ESManager<SyncESClient> = ESManager::new(urls.clone());
 
         let date = now();
         let index_str = format!("{0}-{1}.{2:02}.{3}", &config_obj.es.prefix, (date.tm_year + 1900), (date.tm_mon + 1), date.tm_mday);
@@ -183,16 +183,7 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
             pipe.decr("messages.unprocessed");
         }
 
-        es.push_messages(&messages_pack);
-
-        /*let payload = messages_pack.join("\n");
-        let bulk = es.create_bulk(index_str, payload);
-
-        ensure! ({
-                let b = bulk.clone();
-                es.request(b).send()
-        });
-        */
+        es.push_messages(&index_str, &messages_pack);
         es.update();
 
         pipe.send(&mut statsd);
