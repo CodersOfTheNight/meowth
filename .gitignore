@@ -3,7 +3,9 @@ release/
 
 libsodium/
 zeromq-*/
+backup/
 
 Cargo.lock
 **/*.rs.bk
 *.tar.gz
+.zmq
