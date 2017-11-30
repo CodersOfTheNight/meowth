@@ -1,6 +1,7 @@
 CARGO_BIN=~/.cargo/bin/cargo
 RUSTUP_BIN=~/.cargo/bin/rustup
 OPENSSL_PATH="/usr/local/opt/openssl/"
+ZMQ_STATE=.zmq
 
 __PHONY__: all
 
@@ -32,8 +33,11 @@ else
 endif
 
 zmq:
-ifneq ("$(wildcard /etc/redhat-release)","")
+ifneq ("$(wildcard $(ZMQ_STATE))","")
+	@echo "Zmq is already here"
+else ifneq ("$(wildcard /etc/redhat-release)","")
 	yum install zeromq-4.1.2 zeromq-devel-4.1.2
 else
 	sh build_zmq.sh
+	touch $(ZMQ_STATE)
 endif
