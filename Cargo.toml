@@ -1,11 +1,12 @@
 [package]
 name = "meowth"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Šarūnas Navickas"]
 
 [dependencies]
 time = "0.1.38"
 chrono = "0.4.0"
+log = "0.3"
 env_logger = "0.4.3"
 yaml-rust = "0.4.0"
 getopts = "0.2.15"
