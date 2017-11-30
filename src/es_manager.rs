@@ -1,8 +1,14 @@
 use elastic::prelude::*;
-use std::marker::PhantomData;
+use elastic::client::requests::RequestBuilder;
+use elastic::client::Sender;
 
+use std::marker::PhantomData;
 use std::time::Duration;
 use std::thread;
+
+
+use es_client::ESClient;
+
 
 macro_rules! ensure {
     ($($body: expr), *) => {
@@ -25,13 +31,8 @@ macro_rules! ensure {
     };
 }
 
-fn check_client(es: &Client) -> bool {
-    let ping = PingRequest::new();
-    let response = es.request(ping).send();
-    match response {
-        Ok(_) => true,
-        Err(_) => false
-    }
+fn check_client<TClient: ESClient>(es: &mut TClient) -> bool {
+    es.ping()
 }
 
 
@@ -76,22 +77,21 @@ pub struct ESManager<'a, T: 'a> {
     phantom: PhantomData<&'a T>,
 }
 
-impl<'a> ESManager<'a, Client> {
-    pub fn new(urls: Vec<String>) -> ESManager<'a, Client> {
+impl<'a, TClient: ESClient> ESManager<'a, TClient>
+{
+    pub fn new(urls: Vec<String>) -> ESManager<'a, TClient> {
         let size = urls.len() as u32;
         let clients = urls.into_iter().map(|u| {
-            let params = RequestParams::new(u.to_owned());
-            Client::new(params).unwrap()
+            TClient::new(&u)
         }).collect();
 
         info!("Creating ElastiSearch Manager with {} clients", size);
         ESManager{ clients: clients, phantom: PhantomData, cursor: RRCursor::new(size as u32) }
     }
 
-    pub fn request<T>(&'a self, req: T) -> RequestBuilder<'a, T>
-        where T: Into<HttpRequest<'static, u8>>{
+    pub fn push_messages(&mut self, data: &Vec<String>) -> bool {
         let index = self.cursor.current() as usize;
-        self.clients[index].request(req)
+        self.clients[index].push_messages(data)
     }
 
     pub fn update(&mut self) {
@@ -120,11 +120,10 @@ impl<'a> ESManager<'a, Client> {
         }
     }
 
-    pub fn create_index(index_str: &String) -> Index {
-        Index::from(index_str.to_owned())
+/*
+    pub fn create_bulk<T>(index_str: &String, payload: T) -> BulkRequest<'a, T> {
+        let index = Index::from(index_str.to_owned());
+        BulkRequest::for_index(index, payload)
     }
-
-    pub fn create_bulk(index: Index, payload: &String) -> BulkRequest<'a> {
-        BulkRequest::for_index(index, payload);
-    }
+    */
 }

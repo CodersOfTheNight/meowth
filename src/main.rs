@@ -34,7 +34,9 @@ mod config;
 
 #[macro_use]
 mod es_manager;
+mod es_client;
 
+use es_client::SyncESClient;
 use config::Cfg;
 use es_manager::ESManager;
 
@@ -143,12 +145,11 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
 
     let mut statsd = Client::new(&config_obj.statsd.address, &config_obj.statsd.prefix).unwrap();
     loop {
-        let mut es = ESManager::new(urls.clone());
+        let mut es: ESManager<SyncESClient> = ESManager::new(urls.clone());
 
         let date = now();
         let index_str = format!("{0}-{1}.{2:02}.{3}", &config_obj.es.prefix, (date.tm_year + 1900), (date.tm_mon + 1), date.tm_mday);
         debug!("Index is: {}", &index_str);
-        let index = es.create_index(index_str);
         let mut messages_pack: Vec<String> = Vec::new();
         let mut pipe = statsd.pipeline();
 
@@ -182,13 +183,16 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
             pipe.decr("messages.unprocessed");
         }
 
-        let payload = messages_pack.join("\n");
-        let bulk = es.create_bulk(index, payload);
+        es.push_messages(&messages_pack);
+
+        /*let payload = messages_pack.join("\n");
+        let bulk = es.create_bulk(index_str, payload);
 
         ensure! ({
                 let b = bulk.clone();
                 es.request(b).send()
         });
+        */
         es.update();
 
         pipe.send(&mut statsd);

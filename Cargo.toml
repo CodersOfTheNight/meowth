@@ -18,4 +18,4 @@ zmq = "0.8.2"
 statsd = "0.10.0"
 
 # ElasticSearch dependencies
-elastic = "0.20"
+elastic = "0.20.5"
