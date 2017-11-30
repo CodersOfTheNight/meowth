@@ -25,3 +25,4 @@ cd zeromq-4.1.6
 ./configure
 make
 sudo make install
+cd ..
