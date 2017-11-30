@@ -11,7 +11,8 @@ sudo apt-get install libzmq-dev
 git clone git://github.com/jedisct1/libsodium.git
 cd libsodium
 ./autogen.sh
-./configure && make check
+./configure --prefix=$HOME
+make check
 sudo make install
 sudo ldconfig
 
@@ -22,7 +23,7 @@ cd ..
 wget https://github.com/zeromq/zeromq4-1/releases/download/v4.1.6/zeromq-4.1.6.tar.gz
 tar -xvf zeromq-4.1.6.tar.gz
 cd zeromq-4.1.6
-./configure
+./configure --prefix=$HOME --with-libsodium
 make
 sudo make install
 cd ..
