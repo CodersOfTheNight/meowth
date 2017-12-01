@@ -4,9 +4,13 @@ rust:
   - beta
   - nightly
 
+addons:
+  apt:
+    packages:
+      - libzmq3-dev
+
 before_install:
   - sudo apt-get update
-  - sh build_zmq.sh
 
 matrix:
   allow_failures:
