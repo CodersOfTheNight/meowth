@@ -1,7 +1,6 @@
 // Based on: https://github.com/elastic-rs/elastic/blob/master/examples/account_sample/src/ops/mod.rs
 use elastic::prelude::*;
 use elastic::client::{SyncClientBuilder, SyncClient};
-use elastic::error::Result;
 
 pub trait ESClient {
     fn new(url: &String) -> Self;

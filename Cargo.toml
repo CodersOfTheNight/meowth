@@ -3,6 +3,13 @@ name = "meowth"
 version = "0.0.2"
 authors = ["Šarūnas Navickas"]
 
+[features]
+# zMQ consumer is built by default
+default = ["tcp"]
+
+zmq = []
+tcp = []
+
 [dependencies]
 meowth_lib = { path = "lib" }
 
@@ -14,7 +21,6 @@ yaml-rust = "0.4.0"
 getopts = "0.2.15"
 hostname = "0.1.3"
 
-zmq = "0.8.2"
 statsd = "0.10.0"
 
 # ElasticSearch dependencies

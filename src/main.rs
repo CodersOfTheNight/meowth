@@ -1,4 +1,3 @@
-extern crate zmq;
 extern crate statsd;
 extern crate yaml_rust;
 extern crate getopts;
@@ -21,26 +20,28 @@ use std::thread;
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
 use time::now;
-use std::time::Duration;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
 use std::net::{TcpListener, TcpStream};
+use std::io::prelude::*;
+use std::str;
 use hostname::get_hostname;
 
 use meowth_lib::models::LogEntry;
+use meowth_lib::consumer::{Msg, Metric, MetricType};
 use meowth_lib::{logentry_to_msg, msg_to_logentry};
+
+#[cfg(feature = "zmq")]
+extern crate zmq_consumer;
 
 mod config;
 
-#[macro_use]
 mod es_manager;
 mod es_client;
 
 use es_client::SyncESClient;
 use config::Cfg;
 use es_manager::ESManager;
-
-type Msg = String;
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} --config cfg", program);
@@ -78,7 +79,7 @@ fn main() {
 
 }
 
-fn zmq_subscriber(config_obj: &Cfg, tx: Sender<Msg>) {
+/*fn zmq_subscriber(config_obj: &Cfg, tx: Sender<Msg>) {
     let mut statsd = Client::new(&config_obj.statsd.address, &config_obj.statsd.prefix).unwrap();
     match config_obj.zmq {
         Some(ref cfg) => {
@@ -107,10 +108,14 @@ fn zmq_subscriber(config_obj: &Cfg, tx: Sender<Msg>) {
         None => {
         }
     }
-}
+}*/
 
-fn handle_stream(stream: TcpStream, tx: &Sender<Msg>) {
-    // TODO: Someday
+fn handle_stream(stream: &mut TcpStream, tx: &Sender<Msg>) {
+    let mut buffer: Vec<u8> = Vec::new();
+    stream.read_to_end(&mut buffer).unwrap();
+
+    let payload = str::from_utf8(&buffer).unwrap();
+    info!("Got tcp data: {}", payload);
 }
 
 fn tcp_subscriber(config_obj: &Cfg, tx: Sender<Msg>) {
@@ -123,8 +128,8 @@ fn tcp_subscriber(config_obj: &Cfg, tx: Sender<Msg>) {
 
             for stream in listener.incoming() {
                 match stream {
-                    Ok(s) => {
-                        handle_stream(s, &tx);
+                    Ok(mut s) => {
+                        handle_stream(&mut s, &tx);
                     },
                     Err(e) => {
                         panic!(e);
@@ -137,13 +142,13 @@ fn tcp_subscriber(config_obj: &Cfg, tx: Sender<Msg>) {
     }
 }
 
-fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
+fn worker(config_obj: &Cfg, rx: Receiver<Msg>, mon: Sender<Metric>) {
     info!("Starting worker");
     let urls = &config_obj.es.address;
     let ty = &config_obj.es.ty;
     let bulk_size = config_obj.es.bulk_size;
 
-    let mut statsd = Client::new(&config_obj.statsd.address, &config_obj.statsd.prefix).unwrap();
+    //let mut statsd = Client::new(&config_obj.statsd.address, &config_obj.statsd.prefix).unwrap();
     let mut es: ESManager<SyncESClient> = ESManager::new(urls.clone());
     loop {
 
@@ -151,11 +156,11 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
         let index_str = format!("{0}-{1}.{2:02}.{3}", &config_obj.es.prefix, (date.tm_year + 1900), (date.tm_mon + 1), date.tm_mday);
         debug!("Index is: {}", &index_str);
         let mut messages_pack: Vec<String> = Vec::new();
-        let mut pipe = statsd.pipeline();
+        //let mut pipe = statsd.pipeline();
 
         for i in 1 .. bulk_size {
             let data = rx.recv().unwrap();
-            debug!("Received message: '{}'", &data);
+            debug!("Received message: '{}'", &data.payload);
             let mut msg: LogEntry = msg_to_logentry(&data);
             //Extend model with additional fields
             match msg.ty {
@@ -175,18 +180,60 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>) {
 
 
             debug!("{} items to go before flush", (bulk_size - i));
-            let payload = logentry_to_msg(&msg);
-            trace!("Output payload: {}", payload);
-            let doc_index = format!("{{\"index\":{{\"_id\":\"{0}\", \"_type\": \"{1}\"}}}}", get_hash(&payload.to_owned()), &ty);
+            let msg = logentry_to_msg(&msg);
+            trace!("Output payload: {}", msg.payload);
+            let doc_index = format!("{{\"index\":{{\"_id\":\"{0}\", \"_type\": \"{1}\"}}}}", get_hash(&msg.payload.to_owned()), &ty);
             messages_pack.push(doc_index);
-            messages_pack.push(payload);
-            pipe.decr("messages.unprocessed");
+            messages_pack.push(msg.payload);
+            mon.send(Metric::new("messages.unprocessed", -1.0, MetricType::Counter)).unwrap();
         }
 
         es.push_messages(&index_str, &messages_pack);
         es.update();
 
-        pipe.send(&mut statsd);
+        //pipe.send(&mut statsd);
+    }
+}
+
+
+#[cfg(feature = "zmq")]
+fn subscribe(config_obj: &Cfg, tx: Sender<Msg>, mon: Sender<Metric>) {
+    use zmq_consumer::ZmqConsumer;
+    match config_obj.zmq {
+        Some(ref cfg) => {
+            let consumer = ZmqConsumer(&cfg.address, cfg.bind);
+            let thread_tx = tx.clone();
+            let thread_mon = mon.clone();
+            thread::spawn(move || {
+                consumer.subscribe(thread_tx, thread_mon);
+            });
+        },
+        None => {
+        }
+    }
+}
+
+#[cfg(feature = "tcp")]
+fn subscribe(config_obj: &Cfg, tx: Sender<Msg>, mon: Sender<Metric>) {
+    match config_obj.tcp {
+        Some(ref cfg) => {
+            info!("Starting TCP subscriber");
+            let addr: &str = &cfg.address;
+            let listener = TcpListener::bind(&addr).unwrap();
+
+            for stream in listener.incoming() {
+                match stream {
+                    Ok(mut s) => {
+                        handle_stream(&mut s, &tx);
+                    },
+                    Err(e) => {
+                        panic!(e);
+                    }
+                }
+            }
+        },
+        None => {
+        }
     }
 }
 
@@ -195,23 +242,19 @@ fn run(cfg: &str) {
     let config_obj = config::load(cfg).unwrap();
 
     let (tx, rx): (Sender<Msg>, Receiver<Msg>) = mpsc::channel();
+    let (mon, consume): (Sender<Metric>, Receiver<Metric>) = mpsc::channel();
 
     let config = config_obj.clone();
     let thread_tx = tx.clone();
+    let thread_mon = mon.clone();
     thread::spawn(move || {
-        zmq_subscriber(&config, thread_tx);
+        subscribe(&config, thread_tx, thread_mon);
     });
 
     let config = config_obj.clone();
-    let thread_tx = tx.clone();
-    thread::spawn(move || {
-        tcp_subscriber(&config, thread_tx);
-    });
-
-
-    let config = config_obj.clone();
+    let thread_mon = mon.clone();
     let w = thread::spawn(move || {
-        worker(&config, rx);
+        worker(&config, rx, thread_mon);
     });
 
     let result = w.join();
