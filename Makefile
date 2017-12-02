@@ -23,7 +23,7 @@ build: $(CARGO_BIN) zmq config_build_args
 	$(CARGO_BIN) build $(BUILD_ARGS)
 
 run: $(CARGO_BIN) build
-	RUST_LOG=debug $(CARGO_BIN) run -- -c config.yaml
+	RUST_LOG=debug $(CARGO_BIN) run $(BUILD_ARGS) -- -c config.yaml
 
 release: $(CARGO_BIN) zmq test
 	$(CARGO_BIN) build --release $(BUILD_ARGS)
