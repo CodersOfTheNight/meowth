@@ -22,17 +22,17 @@ use std::sync::mpsc;
 use time::now;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
-use std::net::{TcpListener, TcpStream};
-use std::io::prelude::*;
-use std::str;
 use hostname::get_hostname;
 
 use meowth_lib::models::LogEntry;
-use meowth_lib::consumer::{Msg, Metric, MetricType};
+use meowth_lib::consumer::{Msg, Metric, MetricType, Consumer};
 use meowth_lib::{logentry_to_msg, msg_to_logentry};
 
 #[cfg(feature = "zmq")]
 extern crate zmq_consumer;
+
+#[cfg(feature = "tcp")]
+extern crate tcp_consumer;
 
 mod config;
 
@@ -79,70 +79,8 @@ fn main() {
 
 }
 
-/*fn zmq_subscriber(config_obj: &Cfg, tx: Sender<Msg>) {
-    let mut statsd = Client::new(&config_obj.statsd.address, &config_obj.statsd.prefix).unwrap();
-    match config_obj.zmq {
-        Some(ref cfg) => {
-            let ctx = zmq::Context::new();
 
-            let socket = ctx.socket(zmq::PULL).unwrap();
-            if cfg.bind {
-                socket.bind(&cfg.address).unwrap();
-            }
-            else {
-                socket.connect(&cfg.address).unwrap();
-            }
-
-            info!("Starting zMQ subscriber");
-
-            loop {
-                let data = socket.recv_msg(0).unwrap();
-                let len = data.len() as f64;
-                statsd.incr("messages.unprocessed");
-                statsd.gauge("messages.size", len);
-                let payload = std::str::from_utf8(&data).unwrap();
-                trace!("Payload: {}", payload);
-                tx.send(payload.to_owned()).unwrap();
-            }
-        },
-        None => {
-        }
-    }
-}*/
-
-fn handle_stream(stream: &mut TcpStream, tx: &Sender<Msg>) {
-    let mut buffer: Vec<u8> = Vec::new();
-    stream.read_to_end(&mut buffer).unwrap();
-
-    let payload = str::from_utf8(&buffer).unwrap();
-    info!("Got tcp data: {}", payload);
-}
-
-fn tcp_subscriber(config_obj: &Cfg, tx: Sender<Msg>) {
-    let mut statsd = Client::new(&config_obj.statsd.address, &config_obj.statsd.prefix).unwrap();
-    match config_obj.tcp {
-        Some(ref cfg) => {
-            info!("Starting TCP subscriber");
-            let addr: &str = &cfg.address;
-            let listener = TcpListener::bind(&addr).unwrap();
-
-            for stream in listener.incoming() {
-                match stream {
-                    Ok(mut s) => {
-                        handle_stream(&mut s, &tx);
-                    },
-                    Err(e) => {
-                        panic!(e);
-                    }
-                }
-            }
-        },
-        None => {
-        }
-    }
-}
-
-fn worker(config_obj: &Cfg, rx: Receiver<Msg>, mon: Sender<Metric>) {
+fn process_logs(config_obj: &Cfg, rx: Receiver<Msg>, mon: Sender<Metric>) {
     info!("Starting worker");
     let urls = &config_obj.es.address;
     let ty = &config_obj.es.ty;
@@ -156,7 +94,6 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>, mon: Sender<Metric>) {
         let index_str = format!("{0}-{1}.{2:02}.{3}", &config_obj.es.prefix, (date.tm_year + 1900), (date.tm_mon + 1), date.tm_mday);
         debug!("Index is: {}", &index_str);
         let mut messages_pack: Vec<String> = Vec::new();
-        //let mut pipe = statsd.pipeline();
 
         for i in 1 .. bulk_size {
             let data = rx.recv().unwrap();
@@ -190,8 +127,6 @@ fn worker(config_obj: &Cfg, rx: Receiver<Msg>, mon: Sender<Metric>) {
 
         es.push_messages(&index_str, &messages_pack);
         es.update();
-
-        //pipe.send(&mut statsd);
     }
 }
 
@@ -201,40 +136,39 @@ fn subscribe(config_obj: &Cfg, tx: Sender<Msg>, mon: Sender<Metric>) {
     use zmq_consumer::ZmqConsumer;
     match config_obj.zmq {
         Some(ref cfg) => {
-            let consumer = ZmqConsumer(&cfg.address, cfg.bind);
-            let thread_tx = tx.clone();
-            let thread_mon = mon.clone();
-            thread::spawn(move || {
-                consumer.subscribe(thread_tx, thread_mon);
-            });
+            let mut consumer = ZmqConsumer::new(&cfg.address, cfg.bind);
+            consumer.subscribe(tx, mon);
         },
         None => {
+            panic!("Invalid ZmqConsumer Config");
         }
     }
 }
 
 #[cfg(feature = "tcp")]
 fn subscribe(config_obj: &Cfg, tx: Sender<Msg>, mon: Sender<Metric>) {
+    use tcp_consumer::TCPConsumer;
     match config_obj.tcp {
         Some(ref cfg) => {
-            info!("Starting TCP subscriber");
-            let addr: &str = &cfg.address;
-            let listener = TcpListener::bind(&addr).unwrap();
-
-            for stream in listener.incoming() {
-                match stream {
-                    Ok(mut s) => {
-                        handle_stream(&mut s, &tx);
-                    },
-                    Err(e) => {
-                        panic!(e);
-                    }
-                }
-            }
+            let mut consumer = TCPConsumer::new(&cfg.address, cfg.bind);
+            consumer.subscribe(tx, mon);
         },
         None => {
+            panic!("Invalid TCPConsumer Config");
         }
     }
+}
+
+fn handle_monitoring(config_obj: &Cfg, mon: Receiver<Metric>) {
+    let mut statsd = Client::new(&config_obj.statsd.address, &config_obj.statsd.prefix).unwrap();
+    loop {
+        let mut pipe = statsd.pipeline();
+        for i in 1 .. 10 {
+            let metric = mon.recv().unwrap();
+        }
+        pipe.send(&mut statsd);
+    }
+
 }
 
 fn run(cfg: &str) {
@@ -252,9 +186,14 @@ fn run(cfg: &str) {
     });
 
     let config = config_obj.clone();
+    thread::spawn(move || {
+        handle_monitoring(&config, consume);
+    });
+
+    let config = config_obj.clone();
     let thread_mon = mon.clone();
     let w = thread::spawn(move || {
-        worker(&config, rx, thread_mon);
+        process_logs(&config, rx, thread_mon);
     });
 
     let result = w.join();

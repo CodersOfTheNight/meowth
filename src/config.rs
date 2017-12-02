@@ -33,6 +33,7 @@ pub struct ElasticCfg {
 #[derive(Clone)]
 pub struct TcpCfg {
     pub address: String,
+    pub bind: bool,
 }
 
 #[derive(Clone)]
@@ -68,6 +69,7 @@ impl Config<TcpCfg> for TcpCfg {
     fn load(doc: &Yaml) -> TcpCfg {
         TcpCfg {
             address: doc["address"].as_str().unwrap().to_owned(),
+            bind: doc["bind"].as_bool().unwrap(),
         }
     }
 }

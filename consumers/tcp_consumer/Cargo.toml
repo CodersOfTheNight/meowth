@@ -3,8 +3,6 @@ name = "tcp_consumer"
 version = "0.1.0"
 authors = ["Šarūnas Navickas <s.navickas@adform.com>"]
 
-[lib]
-crate-type = ["dylib"]
-
 [dependencies]
 meowth_lib = { path = "../../lib" }
+log = "0.3"

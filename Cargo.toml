@@ -7,8 +7,8 @@ authors = ["Šarūnas Navickas"]
 # zMQ consumer is built by default
 default = ["tcp"]
 
-zmq = []
-tcp = []
+zmq = ["zmq_consumer"]
+tcp = ["tcp_consumer"]
 
 [dependencies]
 meowth_lib = { path = "lib" }
@@ -25,3 +25,11 @@ statsd = "0.10.0"
 
 # ElasticSearch dependencies
 elastic = "0.20.5"
+
+[dependencies.tcp_consumer]
+optional = true
+path = "consumers/tcp_consumer"
+
+[dependencies.zmq_consumer]
+optional = true
+path = "consumers/zmq_consumer"
