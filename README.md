@@ -11,6 +11,17 @@ About
 Simple service which is receiving messages from zeroMq and pushes them to ElasticSearch. 
 A lightweigth Logstash alternative which eats wastly less resources, however has far less functionalitty.  
 
+Compilation
+===========
+Meowth could either be used with `zMQ` or simple `TCP` consumer.
+
+When using Makefile `ZMQ_CONSUMER=1` flag compiles with `zmq` consumer, by default it builds with `tcp`.
+
+When building manually with `cargo`, same effect is achieved by adding either `--features="zmq"` or `--features="tcp"`,
+eg.: `cargo build --features="zmq"`
+
+Be aware, that `zMQ` consumers requires having development libraries on your system
+
 
 Config
 =======
