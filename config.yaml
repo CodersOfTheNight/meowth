@@ -4,6 +4,7 @@ statsd:
   prefix: "logs"
 tcp:
   address: 127.0.0.1:50020
+  bind: true
 elastic_search:
   address:
     - http://localhost:9200
