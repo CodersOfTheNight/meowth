@@ -26,7 +26,7 @@ run: $(CARGO_BIN) build
 	RUST_LOG=debug $(CARGO_BIN) run -- -c config.yaml
 
 release: $(CARGO_BIN) zmq test
-	$(CARGO_BIN) build --release
+	$(CARGO_BIN) build --release $(BUILD_ARGS)
 
 test: $(CARGO_BIN) build
 	$(CARGO_BIN) test
@@ -46,7 +46,7 @@ endif
 
 zmq:
 ifneq ($(USE_ZMQ), 1)
-	# No need to do anything here
+	@echo "Not using zMQ. No need to build it."
 else ifneq ("$(wildcard $(ZMQ_STATE))","")
 	@echo "Zmq is already here"
 else ifneq ("$(wildcard /etc/redhat-release)","")
