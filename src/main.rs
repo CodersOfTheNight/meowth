@@ -165,6 +165,18 @@ fn handle_monitoring(config_obj: &Cfg, mon: Receiver<Metric>) {
         let mut pipe = statsd.pipeline();
         for i in 1 .. 10 {
             let metric = mon.recv().unwrap();
+
+            match metric._type {
+                MetricType::Timer => {
+                    pipe.timer(&metric.key, metric.value)
+                },
+                MetricType::Gauge => {
+                    pipe.gauge(&metric.key, metric.value)
+                },
+                MetricType::Counter => {
+                    pipe.count(&metric.key, metric.value)
+                }
+            }
         }
         pipe.send(&mut statsd);
     }

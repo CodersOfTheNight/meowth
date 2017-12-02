@@ -7,9 +7,9 @@ pub enum MetricType {
 }
 
 pub struct Metric {
-    key: String,
-    value: f64,
-    _type: MetricType
+    pub key: String,
+    pub value: f64,
+    pub _type: MetricType
 }
 
 pub struct Msg {
