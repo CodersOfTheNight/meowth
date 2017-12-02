@@ -6,22 +6,35 @@ extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
 
-//extern crate elastic;
 #[macro_use]
 extern crate elastic_types_derive;
 extern crate elastic_types;
+
+#[macro_use]
+extern crate log;
 
 extern crate json_str;
 
 pub mod models;
 pub mod consumer;
 
+use serde_json::{Result, Error};
+
+
 use models::LogEntry;
 use consumer::Msg;
 
 #[no_mangle]
-pub fn msg_to_logentry(msg: &Msg) -> LogEntry {
-    serde_json::from_str(&msg.payload).unwrap()
+pub fn msg_to_logentry(msg: &Msg) -> Option<LogEntry> {
+    match serde_json::from_str(&msg.payload) {
+        Ok(msg) => {
+            Some(msg)
+        },
+        Err(error) => {
+            error!("Failed to serialize '{}' into Message Object, reason: '{}'", &msg.payload, error);
+            None
+        }
+    }
 }
 
 #[no_mangle]

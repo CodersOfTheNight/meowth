@@ -98,31 +98,41 @@ fn process_logs(config_obj: &Cfg, rx: Receiver<Msg>, mon: Sender<Metric>) {
         for i in 1 .. bulk_size {
             let data = rx.recv().unwrap();
             debug!("Received message: '{}'", &data.payload);
-            let mut msg: LogEntry = msg_to_logentry(&data);
-            //Extend model with additional fields
-            match msg.ty {
-                None => {
-                    msg.ty = Some(String::from(ty.to_owned()));
+            match msg_to_logentry(&data) {
+                Some(mut msg) => {
+
+                    //Extend model with additional fields
+                    match msg.ty {
+                        None => {
+                            msg.ty = Some(String::from(ty.to_owned()));
+                        },
+                        _ => {}
+                    }
+
+                    match msg.host {
+                        None => {
+                            msg.host = get_hostname();
+                        },
+                        _ => {}
+                    }
+                    msg.ts = Some(msg.time);
+
+
+                    debug!("{} items to go before flush", (bulk_size - i));
+                    let msg = logentry_to_msg(&msg);
+                    trace!("Output payload: {}", msg.payload);
+                    let doc_index = format!("{{\"index\":{{\"_id\":\"{0}\", \"_type\": \"{1}\"}}}}", get_hash(&msg.payload.to_owned()), &ty);
+                    messages_pack.push(doc_index);
+                    messages_pack.push(msg.payload);
+                    mon.send(Metric::new("messages.unprocessed", -1.0, MetricType::Counter)).unwrap();
                 },
-                _ => {}
-            }
 
-            match msg.host {
                 None => {
-                    msg.host = get_hostname();
-                },
-                _ => {}
+                    mon.send(Metric::new("messages.unprocessed", -1.0, MetricType::Counter)).unwrap();
+                    mon.send(Metric::new("messages.errors", 1.0, MetricType::Counter)).unwrap();
+                    continue
+                }
             }
-            msg.ts = Some(msg.time);
-
-
-            debug!("{} items to go before flush", (bulk_size - i));
-            let msg = logentry_to_msg(&msg);
-            trace!("Output payload: {}", msg.payload);
-            let doc_index = format!("{{\"index\":{{\"_id\":\"{0}\", \"_type\": \"{1}\"}}}}", get_hash(&msg.payload.to_owned()), &ty);
-            messages_pack.push(doc_index);
-            messages_pack.push(msg.payload);
-            mon.send(Metric::new("messages.unprocessed", -1.0, MetricType::Counter)).unwrap();
         }
 
         es.push_messages(&index_str, &messages_pack);
