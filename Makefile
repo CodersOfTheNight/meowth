@@ -29,10 +29,7 @@ release: $(CARGO_BIN) zmq test
 	$(CARGO_BIN) build --release $(BUILD_ARGS)
 
 test: $(CARGO_BIN) build
-	$(CARGO_BIN) test
-
-lib:
-	$(CARGO_BIN) 
+	$(CARGO_BIN) test $(BUILD_ARGS)
 
 install: $(CARGO_BIN) test release
 ifneq ("$(wildcard /etc/redhat-release)","")
