@@ -18,8 +18,13 @@ fn handle_stream(stream: &mut TcpStream, tx: &Sender<Msg>, mon: &Sender<Metric>)
     let mut buffer: Vec<u8> = Vec::new();
     stream.read_to_end(&mut buffer).unwrap();
 
+    let len = buffer.len() as f64;
+    mon.send(Metric::new("messages.size", len, MetricType::Gauge)).unwrap();
+    mon.send(Metric::new("messages.unprocessed", 1.0, MetricType::Counter)).unwrap();
+
     let payload = str::from_utf8(&buffer).unwrap();
-    info!("Got tcp data: {}", payload);
+    trace!("Payload: {}", payload);
+    tx.send(Msg::new(payload)).unwrap();
 }
 
 
