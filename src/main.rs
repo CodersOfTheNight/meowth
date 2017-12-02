@@ -163,7 +163,8 @@ fn handle_monitoring(config_obj: &Cfg, mon: Receiver<Metric>) {
     let mut statsd = Client::new(&config_obj.statsd.address, &config_obj.statsd.prefix).unwrap();
     loop {
         let mut pipe = statsd.pipeline();
-        for i in 1 .. 10 {
+        let chunk_size = 10;
+        for _ in 1 .. chunk_size {
             let metric = mon.recv().unwrap();
 
             match metric._type {

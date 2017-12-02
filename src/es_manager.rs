@@ -5,33 +5,9 @@ use std::thread;
 
 use es_client::ESClient;
 
-
-macro_rules! ensure {
-    ($($body: expr), *) => {
-
-        let sleep_millis = Duration::from_millis(5000);
-
-        loop {
-            let response = $($body)*;
-            match response {
-                Ok(_) => {
-                    break
-                },
-                Err(error) => {
-                        info!("Failed to push bulk to ElasticSearch. Reason: {:?}. Retrying", error);
-                        thread::sleep(sleep_millis);
-                        continue
-                },
-            }
-        };
-    };
-}
-
 fn check_client<TClient: ESClient>(es: &mut TClient) -> bool {
     es.ping()
 }
-
-
 
 trait Cursor {
     fn current(&self) -> u32;

@@ -1,11 +1,10 @@
 [package]
 name = "meowth"
-version = "0.0.2"
+version = "0.1.0"
 authors = ["Šarūnas Navickas"]
 
 [features]
-# zMQ consumer is built by default
-default = ["tcp"]
+default = []
 
 zmq = ["zmq_consumer"]
 tcp = ["tcp_consumer"]
