@@ -220,6 +220,6 @@ fn run(cfg: &str) {
     });
 
     let result = w.join();
-    assert!(result.is_err());
+    assert!(!result.is_err());
 }
 
